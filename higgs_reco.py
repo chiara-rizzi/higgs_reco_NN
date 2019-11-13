@@ -6,6 +6,11 @@ import logging
 from sklearn.preprocessing import StandardScaler # to scale data
 from sklearn.model_selection import train_test_split
 
+# NN model
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
@@ -44,8 +49,8 @@ df_new = pd.DataFrame(rows_list, columns=['EventNum','i_A','i_B','pt_A','pt_B','
 #print(df_new.head(100))
 
 logger.info('Converting DataFrame into np arrays')
-X = df_new.iloc[:,:-1].values
-y = df_new.iloc[:,-1].values
+X = df_new[['pt_A','pt_B']].values
+y = df_new['is_good'].values
 
 # scaling
 logger.info('Scaling features')
@@ -56,3 +61,13 @@ X = sc.fit_transform(X)
 logger.info('Train and test splitting')
 X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = 0.5)
 
+# Neural network
+model = Sequential() # creating model sequentially (each layer takes as input output of previous layer)
+model.add(Dense(16, input_dim=2, activation='relu')) # Dense: fully connected layer
+model.add(Dense(12, activation='relu'))
+model.add(Dense(1, activation='softmax')) # chiara: check what's the best activation function for single-value output
+# loss function and optimizer
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# training 
+history = model.fit(X_train, y_train, epochs=100, batch_size=64)
