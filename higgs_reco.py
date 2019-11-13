@@ -10,6 +10,11 @@ from sklearn.model_selection import train_test_split
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
+# accuracy
+from sklearn.metrics import accuracy_score
+# for plotting
+import matplotlib.pyplot as plt
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -68,6 +73,47 @@ model.add(Dense(12, activation='relu'))
 model.add(Dense(1, activation='softmax')) # chiara: check what's the best activation function for single-value output
 # loss function and optimizer
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-
 # training 
-history = model.fit(X_train, y_train, epochs=100, batch_size=64)
+history = model.fit(X_train, y_train, epochs=1, batch_size=64, # it was 100 epochs
+                    validation_data = (X_test,y_test)) # show accuracy on test data after every epoch
+
+# Prediction
+y_pred_test = model.predict(X_test)
+a = accuracy_score(y_pred_test,y_test)
+print('Accuracy is:', a*100)
+
+print(y_pred_test)
+print('y_train.size: ',y_train.size)
+print('y_test.size: ',y_test.size)
+print('y_pred_test.size: ',y_pred_test.size)
+print('y.size: ', y.size)
+print('X.size: ', X.size)
+print('df_new.shape: ', df_new.shape)
+
+logger.info('Plotting accuracy')
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+#plt.show()
+
+logger.info('Plotting loss function')
+plt.plot(history.history['loss']) 
+plt.plot(history.history['val_loss']) 
+plt.title('Model loss') 
+plt.ylabel('Loss') 
+plt.xlabel('Epoch') 
+plt.legend(['Train', 'Test'], loc='upper left') 
+#plt.show()
+
+logger.info('Make column of prediction for DataFrame')
+y_pred = model.predict(X) # value of predicted y on train set 
+df_new['is_good_pred'] = y_pred
+
+print(df_new.head())
+
+df_new_chosen = df_new.loc[df_new.groupby('EventNum')['is_good_pred'].idxmax()]
+
+print(df_new_chosen.head())
