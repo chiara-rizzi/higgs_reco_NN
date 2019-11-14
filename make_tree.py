@@ -81,13 +81,13 @@ for idx,event in enumerate(t_in):
     
     i_h1, i_h2 = choose_index(df_new)
 
-    # print "Original"
-    #  print df_new
-    #  print "Sorted"
-    #  print df_new.sort_values(by=['is_good_pred'],ascending=False)
-    #  print "Chosen indexes"
-    #  print i_h1
-    #  print i_h2
+    print "Original"
+    print df_new
+    print "Sorted"
+    print df_new.sort_values(by=['is_good_pred'],ascending=False)
+    print "Chosen indexes"
+    print i_h1
+    print i_h2
     
     # print "Index:", i_A,i_B
     # chiara: need  to check how to do the scaling with the same values as the training sample

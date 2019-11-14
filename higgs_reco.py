@@ -91,8 +91,9 @@ X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = 0.5)
 
 # Neural network
 model = Sequential() # creating model sequentially (each layer takes as input output of previous layer)
-model.add(Dense(16, input_dim=10, activation='relu')) # Dense: fully connected layer
-model.add(Dense(12, activation='relu'))
+model.add(Dense(20, input_dim=10, activation='relu')) # Dense: fully connected layer
+model.add(Dense(50, activation='relu'))
+model.add(Dense(20, activation='relu'))
 model.add(Dense(1, activation='sigmoid')) # chiara: check what's the best activation function for single-value output
 # loss function and optimizer
 opt = SGD(lr=0.001)
