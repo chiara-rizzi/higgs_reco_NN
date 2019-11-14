@@ -1,3 +1,4 @@
+
 import uproot 
 import pandas as pd
 import numpy as np
@@ -81,6 +82,10 @@ history = model.fit(X_train, y_train, epochs=1, batch_size=64, # it was 100 epoc
 y_pred_test = model.predict(X_test)
 a = accuracy_score(y_pred_test,y_test)
 logger.info('Accuracy is:', a*100)
+
+
+model.save('models/my_model.h5')  # creates a HDF5 file 'my_model.h5'
+
 """
 print(y_pred_test)
 print('y_train.size: ',y_train.size)

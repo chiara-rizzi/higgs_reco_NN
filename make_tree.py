@@ -1,5 +1,7 @@
 import ROOT
 from array import array
+from keras.models import load_model
+import itertools # to make all the combinations of two jets in the event
 
 print "Chiara"
 
@@ -25,8 +27,16 @@ t_out.Branch( 'dR_h1_NN', dRh1, 'dR_h1_NN/F' )
 t_out.Branch( 'dR_h2_NN', dRh2, 'dR_h2_NN/F' )
 t_out.Branch( 'm_hh_NN', mhh, 'm_hh_NN/F' )
 
+model = load_model('models/my_model.h5')
+
 for idx,event in enumerate(t_in):
-    # assign value to variables
+    # assign value to variables 
+    # for now dummy values
+    print type(event.jets_pt)
+    print event.jets_pt
+
+
+
     mh1[0] = 125
     mh2[0] = 125+idx
     dRh1[0] = 0.2
@@ -34,6 +44,11 @@ for idx,event in enumerate(t_in):
     mhh[0] = 10
     # fill output tree
     t_out.Fill()
+
+    if idx>10:
+        break
+    if idx%1000 == 0:
+        print "Processed: ",idx
 
 f_out.cd()
 t_out.Write()
