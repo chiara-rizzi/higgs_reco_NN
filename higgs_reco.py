@@ -5,6 +5,7 @@ import itertools # to make all the combinations of two jets in the event
 import logging 
 from sklearn.preprocessing import StandardScaler # to scale data
 from sklearn.model_selection import train_test_split
+from keras.optimizers import SGD #test keras
 
 # NN model
 import keras
@@ -61,19 +62,19 @@ for index, row in df1.iterrows():
         dict1['i_A'] = i_A # keep track of index of jet A
         dict1['i_B'] = i_B # keep track of index of jet B
         #dict1['is_good'] = int(np.random.uniform() > 0.5)
-        def is_good(dict1):
-            if  dict1['is_h1_A']>0:
-                if dict1['is_h1_B']>0:
+        def is_good(is_h1_A, is_h1_B, is_h2_A, is_h2_B):
+            if  is_h1_A>0.1:
+                if is_h1_B>0.1:
                     return 1
-            if  dict1['is_h2_A']>0 :
-                if dict1['is_h2_B']>0:
+            if is_h2_A>0.1 :
+                if is_h2_B>0.1:
                     return 1
             return 0        
-        dict1['is_good'] = is_good(dict1)
+        dict1['is_good'] = is_good(dict1['is_h1_A'], dict1['is_h1_B'], dict1['is_h2_A'], dict1['is_h2_B'])
         rows_list.append(dict1)
 # finally create the DataFrame from the list
-df_new = pd.DataFrame(rows_list, columns=['EventNum','i_A','i_B','pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','is_h1_A','is_h1_B','is_good'])  
-print(df_new.head(100))
+df_new = pd.DataFrame(rows_list, columns=['EventNum','i_A','i_B','pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','is_good'])  
+#print(df_new.head(100))
 
 logger.info('Converting DataFrame into np arrays')
 X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B']].values
@@ -82,7 +83,7 @@ y = df_new['is_good'].values
 # scaling
 logger.info('Scaling features')
 sc = StandardScaler()
-X = sc.fit_transform(X) 
+#X = sc.fit_transform(X) 
 
 # train and test splitting
 logger.info('Train and test splitting')
@@ -92,9 +93,11 @@ X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = 0.5)
 model = Sequential() # creating model sequentially (each layer takes as input output of previous layer)
 model.add(Dense(16, input_dim=10, activation='relu')) # Dense: fully connected layer
 model.add(Dense(12, activation='relu'))
-model.add(Dense(1, activation='softmax')) # chiara: check what's the best activation function for single-value output
+model.add(Dense(1, activation='sigmoid')) # chiara: check what's the best activation function for single-value output
 # loss function and optimizer
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+opt = SGD(lr=0.01)
+model.compile(loss = "binary_crossentropy", optimizer = opt, metrics=['accuracy'])
+#model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 # training 
 history = model.fit(X_train, y_train, epochs=10, batch_size=64, # it was 100 epochs
                     validation_data = (X_test,y_test)) # show accuracy on test data after every epoch
