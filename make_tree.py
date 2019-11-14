@@ -1,4 +1,5 @@
 import ROOT
+from array import array
 
 print "Chiara"
 
@@ -9,7 +10,7 @@ t_in = f_in.Get(tree_name)
 print t_in.GetEntries()
 
 output_file_name = 'files/higgs_mass/397231.mc16e.GGMH.root'
-f_out = ROOT.TFile.Open(output_file_name,"RECREATE")
+f_out = ROOT.TFile.Open(output_file_name,'RECREATE')
 t_out = ROOT.TTree(tree_name, tree_name)
 
 mh1 = array( 'f', [ 0 ] )
@@ -18,7 +19,24 @@ dRh1 = array( 'f', [ 0 ] )
 dRh2 = array( 'f', [ 0 ] )
 mhh = array( 'f', [ 0 ] )
 
-for event in t_in:
-    print event.jets_pt[1]
+t_out.Branch( 'm_h1_NN', mh1, 'm_h1_NN/F' )
+t_out.Branch( 'm_h2_NN', mh2, 'm_h2_NN/F' )
+t_out.Branch( 'dR_h1_NN', dRh1, 'dR_h1_NN/F' )
+t_out.Branch( 'dR_h2_NN', dRh2, 'dR_h2_NN/F' )
+t_out.Branch( 'm_hh_NN', mhh, 'm_hh_NN/F' )
 
+for idx,event in enumerate(t_in):
+    # assign value to variables
+    mh1[0] = 125
+    mh2[0] = 125+idx
+    dRh1[0] = 0.2
+    dRh2[0] = 0.4
+    mhh[0] = 10
+    # fill output tree
+    t_out.Fill()
 
+f_out.cd()
+t_out.Write()
+f_out.Close()
+
+#f_in.Close()
