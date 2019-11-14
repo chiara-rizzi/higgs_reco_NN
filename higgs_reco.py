@@ -19,10 +19,10 @@ import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-infile_name = 'files/output_397231_mc16a.root'
+infile_name = 'files/create_tree/output_397231_mc16a.root'
 tree_name = 'GGMH_500'
 # open file and get tree
-logger.info(f'Opening: {infile_name}')
+logger.info('Opening: '+infile_name)
 file = uproot.open(infile_name)
 tree = file[tree_name]
 # print(tree.keys())
@@ -80,8 +80,8 @@ history = model.fit(X_train, y_train, epochs=1, batch_size=64, # it was 100 epoc
 # Prediction
 y_pred_test = model.predict(X_test)
 a = accuracy_score(y_pred_test,y_test)
-print('Accuracy is:', a*100)
-
+logger.info('Accuracy is:', a*100)
+"""
 print(y_pred_test)
 print('y_train.size: ',y_train.size)
 print('y_test.size: ',y_test.size)
@@ -89,7 +89,7 @@ print('y_pred_test.size: ',y_pred_test.size)
 print('y.size: ', y.size)
 print('X.size: ', X.size)
 print('df_new.shape: ', df_new.shape)
-
+"""
 logger.info('Plotting accuracy')
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
@@ -112,8 +112,8 @@ logger.info('Make column of prediction for DataFrame')
 y_pred = model.predict(X) # value of predicted y on train set 
 df_new['is_good_pred'] = y_pred
 
-print(df_new.head())
+#print(df_new.head())
 
 df_new_chosen = df_new.loc[df_new.groupby('EventNum')['is_good_pred'].idxmax()]
 
-print(df_new_chosen.head())
+#print(df_new_chosen.head())
