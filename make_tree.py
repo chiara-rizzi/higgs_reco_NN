@@ -1,3 +1,4 @@
+
 import ROOT
 from array import array
 from keras.models import load_model
@@ -60,11 +61,19 @@ for idx,event in enumerate(t_in):
         dict1 = {}
         dict1['pt_A'] = event.jets_pt[index[0]]
         dict1['pt_B'] = event.jets_pt[index[1]]
+        dict1['eta_A'] = event.jets_eta[index[0]]
+        dict1['eta_B'] = event.jets_eta[index[1]]
+        dict1['phi_A'] = event.jets_phi[index[0]]
+        dict1['phi_B'] = event.jets_phi[index[1]]
+        dict1['e_A'] = event.jets_e[index[0]]
+        dict1['e_B'] = event.jets_e[index[1]]
+        dict1['is_b_A'] = event.jets_isb_FixedCutBEff_77[index[0]]
+        dict1['is_b_B'] = event.jets_isb_FixedCutBEff_77[index[1]]
         dict1['i_A'] = index[0]
         dict1['i_B'] = index[1]
         rows_list.append(dict1)
-    df_new = pd.DataFrame(rows_list, columns=['pt_A','pt_B','i_A','i_B'])
-    X = df_new[['pt_A','pt_B']].values
+    df_new = pd.DataFrame(rows_list, columns=['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','i_A','i_B'])
+    X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B']].values
     y_pred = model.predict(X)
 
     y_pred = np.random.rand(y_pred.size) # chiara: remove!! just for testing!!

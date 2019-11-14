@@ -95,17 +95,17 @@ model.add(Dense(16, input_dim=10, activation='relu')) # Dense: fully connected l
 model.add(Dense(12, activation='relu'))
 model.add(Dense(1, activation='sigmoid')) # chiara: check what's the best activation function for single-value output
 # loss function and optimizer
-opt = SGD(lr=0.01)
+opt = SGD(lr=0.001)
 model.compile(loss = "binary_crossentropy", optimizer = opt, metrics=['accuracy'])
 #model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 # training 
-history = model.fit(X_train, y_train, epochs=10, batch_size=64, # it was 100 epochs
+history = model.fit(X_train, y_train, epochs=10, batch_size=200, # it was 100 epochs
                     validation_data = (X_test,y_test)) # show accuracy on test data after every epoch
 
 # Prediction
 y_pred_test = model.predict(X_test)
-a = accuracy_score(y_pred_test,y_test)
-logger.info(f'Accuracy is: {a*100}')
+#a = accuracy_score(y_pred_test,y_test)
+#logger.info(f'Accuracy is: {a*100}')
 
 
 model.save('models/my_model.h5')  # creates a HDF5 file 'my_model.h5'
