@@ -2,6 +2,8 @@ import ROOT
 from array import array
 from keras.models import load_model
 import itertools # to make all the combinations of two jets in the event
+import pandas as pd
+import numpy as np
 
 print "Chiara"
 
@@ -29,24 +31,87 @@ t_out.Branch( 'm_hh_NN', mhh, 'm_hh_NN/F' )
 
 model = load_model('models/my_model.h5')
 
+def return_pair(df_new, index):
+    h = (int(df_new.iloc[index]['i_A']), int(df_new.iloc[index]['i_B']))
+    if index == 0:
+        return h
+    h0 = return_pair(df_new, 0)
+    if h[0] in h0 or h[1] in h0:
+        return return_pair(df_new, index+1)
+    else:
+        return h
+
+def choose_index(df_new):
+    df_new = df_new.sort_values(by=['is_good_pred'],ascending=False)
+    h1 = return_pair(df_new, 0)
+    h2 = return_pair(df_new, 1)
+    return (h1,h2)
+
 for idx,event in enumerate(t_in):
     # assign value to variables 
     # for now dummy values
-    print type(event.jets_pt)
-    print event.jets_pt
+    # print type(event.jets_pt)
+    # print event.jets_pt
+    Njet = event.jets_pt.size()
+    # print Njet
+    rows_list = [] # list of rows of the new DataFrame
+    stuff = range(0,Njet)
+    for index in itertools.combinations(stuff, 2):
+        dict1 = {}
+        dict1['pt_A'] = event.jets_pt[index[0]]
+        dict1['pt_B'] = event.jets_pt[index[1]]
+        dict1['i_A'] = index[0]
+        dict1['i_B'] = index[1]
+        rows_list.append(dict1)
+    df_new = pd.DataFrame(rows_list, columns=['pt_A','pt_B','i_A','i_B'])
+    X = df_new[['pt_A','pt_B']].values
+    y_pred = model.predict(X)
 
+    y_pred = np.random.rand(y_pred.size) # chiara: remove!! just for testing!!
+    df_new['is_good_pred'] = y_pred
+    
+    i_h1, i_h2 = choose_index(df_new)
 
+    # print "Original"
+    #  print df_new
+    #  print "Sorted"
+    #  print df_new.sort_values(by=['is_good_pred'],ascending=False)
+    #  print "Chosen indexes"
+    #  print i_h1
+    #  print i_h2
+    
+    # print "Index:", i_A,i_B
+    # chiara: need  to check how to do the scaling with the same values as the training sample
+    # X = sc.fit_transform(X)    
+    h1_b1 = ROOT.TLorentzVector()
+    h1_b2 = ROOT.TLorentzVector()
+    h2_b1 = ROOT.TLorentzVector()
+    h2_b2 = ROOT.TLorentzVector()
 
-    mh1[0] = 125
-    mh2[0] = 125+idx
-    dRh1[0] = 0.2
-    dRh2[0] = 0.4
-    mhh[0] = 10
+    h1_b1.SetPtEtaPhiE(event.jets_pt[i_h1[0]], event.jets_eta[i_h1[0]], event.jets_phi[i_h1[0]], event.jets_e[i_h1[0]])
+    h1_b2.SetPtEtaPhiE(event.jets_pt[i_h1[1]], event.jets_eta[i_h1[1]], event.jets_phi[i_h1[1]], event.jets_e[i_h1[1]])
+    h2_b1.SetPtEtaPhiE(event.jets_pt[i_h2[0]], event.jets_eta[i_h2[0]], event.jets_phi[i_h2[0]], event.jets_e[i_h2[0]])
+    h2_b2.SetPtEtaPhiE(event.jets_pt[i_h2[1]], event.jets_eta[i_h2[1]], event.jets_phi[i_h2[1]], event.jets_e[i_h2[1]])
+
+    h1 = h1_b1 + h1_b2
+    h2 = h2_b1 + h2_b2
+    hh = h1 + h2
+
+    mh1[0] = h1.M()
+    mh2[0] = h2.M()
+    dRh1[0] = h1_b1.DeltaR(h1_b2)
+    dRh2[0] = h2_b1.DeltaR(h2_b2)
+    mhh[0] = hh.M()
+
+    #  print "mh1:", mh1[0]
+    #  print "mh2:", mh2[0]
+    #  print "dRh1:", dRh1[0]
+    #  print "dRh2:", dRh2[0]
+    #  print " "
+
     # fill output tree
     t_out.Fill()
 
-    if idx>10:
-        break
     if idx%1000 == 0:
         print "Processed: ",idx
 
