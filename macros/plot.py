@@ -7,8 +7,8 @@ infile = ROOT.TFile.Open(infile_name)
 t = infile.Get(tree_name)
 
 variables = [
-    ['mass_h1_dR','m_h1_new_min_dR','m_h1_NN','m_h1_true_match']    ,
-    ['mass_h2_dR','m_h2_new_min_dR','m_h2_NN','m_h2_true_match']    
+    ['mass_h1_dR','m_h1_new_min_dR','m_h1_NN_v1','m_h1_NN_v2','m_h1_true_match']    ,
+    ['mass_h2_dR','m_h2_new_min_dR','m_h2_NN_v1','m_h2_NN_v2','m_h2_true_match']    
     ]
 
 names = ['mh1','mh2']
@@ -25,10 +25,9 @@ for ipl,plot in enumerate(variables):
     for var in plot:
         print var
         hists.append(ROOT.TH1F('h_'+var,'h_'+var,bins[0],bins[1],bins[2]))
-        t.Draw(var+'>>h_'+var, 'hh_type==10', 'goff')
+        t.Draw(var+'>>h_'+var, 'hh_type==10 && match_possible>0', 'goff')
 
     for idx,h in enumerate(hists):
-        print idx
         # add overflow and underflow
         h.SetBinContent(1, h.GetBinContent(1)+h.GetBinContent(0))
         h.SetBinContent(bins[0], h.GetBinContent(bins[0])+h.GetBinContent(bins[0]+1))

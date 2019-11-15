@@ -18,18 +18,32 @@ output_file_name = 'files/higgs_mass/397231.mc16e.GGMH.root'
 f_out = ROOT.TFile.Open(output_file_name,'RECREATE')
 t_out = ROOT.TTree(tree_name, tree_name)
 
-mh1 = array( 'f', [ 0 ] )
-mh2 = array( 'f', [ 0 ] )
-dRh1 = array( 'f', [ 0 ] )
-dRh2 = array( 'f', [ 0 ] )
-mhh = array( 'f', [ 0 ] )
+mh1_v1 = array( 'f', [ 0 ] )
+mh2_v1 = array( 'f', [ 0 ] )
+dRh1_v1 = array( 'f', [ 0 ] )
+dRh2_v1 = array( 'f', [ 0 ] )
+mhh_v1 = array( 'f', [ 0 ] )
+
+mh1_v2 = array( 'f', [ 0 ] )
+mh2_v2 = array( 'f', [ 0 ] )
+dRh1_v2 = array( 'f', [ 0 ] )
+dRh2_v2 = array( 'f', [ 0 ] )
+mhh_v2 = array( 'f', [ 0 ] )
+
 pt_j1 = array( 'f', [ 0 ])
 
-t_out.Branch( 'm_h1_NN', mh1, 'm_h1_NN/F' )
-t_out.Branch( 'm_h2_NN', mh2, 'm_h2_NN/F' )
-t_out.Branch( 'dR_h1_NN', dRh1, 'dR_h1_NN/F' )
-t_out.Branch( 'dR_h2_NN', dRh2, 'dR_h2_NN/F' )
-t_out.Branch( 'm_hh_NN', mhh, 'm_hh_NN/F' )
+t_out.Branch( 'm_h1_NN_v1', mh1_v1, 'm_h1_NN_v1/F' )
+t_out.Branch( 'm_h2_NN_v1', mh2_v1, 'm_h2_NN_v1/F' )
+t_out.Branch( 'dR_h1_NN_v1', dRh1_v1, 'dR_h1_NN_v1/F' )
+t_out.Branch( 'dR_h2_NN_v1', dRh2_v1, 'dR_h2_NN_v1/F' )
+t_out.Branch( 'm_hh_NN_v1', mhh_v1, 'm_hh_NN_v1/F' )
+
+t_out.Branch( 'm_h1_NN_v2', mh1_v2, 'm_h1_NN_v2/F' )
+t_out.Branch( 'm_h2_NN_v2', mh2_v2, 'm_h2_NN_v2/F' )
+t_out.Branch( 'dR_h1_NN_v2', dRh1_v2, 'dR_h1_NN_v2/F' )
+t_out.Branch( 'dR_h2_NN_v2', dRh2_v2, 'dR_h2_NN_v2/F' )
+t_out.Branch( 'm_hh_NN_v2', mhh_v2, 'm_hh_NN_v2/F' )
+
 t_out.Branch( 'pt_j1', pt_j1, 'pt_j1/F' )
 
 model = load_model('models/my_model.h5')
@@ -103,11 +117,15 @@ for idx,event in enumerate(t_in):
     y_pred = np.random.rand(y_pred.size) # chiara: remove!! just for testing!!
     df_new['is_good_pred'] = y_pred
     
+    """
     max_first = False
     if max_first:
         i_h1, i_h2 = choose_index(df_new)
     else:
         i_h1, i_h2 = choose_index_maxmin(df_new, Njet)
+    """
+    i_h1, i_h2 = choose_index(df_new)
+    i_h1_b, i_h2_b = choose_index_maxmin(df_new, Njet)
     #  print "Original"
     #  print df_new
     #  print "Sorted"
@@ -119,31 +137,35 @@ for idx,event in enumerate(t_in):
     # print "Index:", i_A,i_B
     # chiara: need  to check how to do the scaling with the same values as the training sample
     # X = sc.fit_transform(X)    
-    h1_b1 = ROOT.TLorentzVector()
-    h1_b2 = ROOT.TLorentzVector()
-    h2_b1 = ROOT.TLorentzVector()
-    h2_b2 = ROOT.TLorentzVector()
+    def  compute_var(i_h1, i_h2):
+        h1_b1 = ROOT.TLorentzVector()
+        h1_b2 = ROOT.TLorentzVector()
+        h2_b1 = ROOT.TLorentzVector()
+        h2_b2 = ROOT.TLorentzVector()
+        
+        h1_b1.SetPtEtaPhiE(event.jets_pt[i_h1[0]], event.jets_eta[i_h1[0]], event.jets_phi[i_h1[0]], event.jets_e[i_h1[0]])
+        h1_b2.SetPtEtaPhiE(event.jets_pt[i_h1[1]], event.jets_eta[i_h1[1]], event.jets_phi[i_h1[1]], event.jets_e[i_h1[1]])
+        h2_b1.SetPtEtaPhiE(event.jets_pt[i_h2[0]], event.jets_eta[i_h2[0]], event.jets_phi[i_h2[0]], event.jets_e[i_h2[0]])
+        h2_b2.SetPtEtaPhiE(event.jets_pt[i_h2[1]], event.jets_eta[i_h2[1]], event.jets_phi[i_h2[1]], event.jets_e[i_h2[1]])    
+        
+        h1 = h1_b1 + h1_b2
+        h2 = h2_b1 + h2_b2
+        hh = h1 + h2
+        
+        if h1.M()<h2.M():
+            h_appo = h1
+            h1 = h2
+            h2 = h_appo
+            
+        return h1.M(), h2.M(), h1_b1.DeltaR(h1_b2), h2_b1.DeltaR(h2_b2), hh.M() 
 
-    h1_b1.SetPtEtaPhiE(event.jets_pt[i_h1[0]], event.jets_eta[i_h1[0]], event.jets_phi[i_h1[0]], event.jets_e[i_h1[0]])
-    h1_b2.SetPtEtaPhiE(event.jets_pt[i_h1[1]], event.jets_eta[i_h1[1]], event.jets_phi[i_h1[1]], event.jets_e[i_h1[1]])
-    h2_b1.SetPtEtaPhiE(event.jets_pt[i_h2[0]], event.jets_eta[i_h2[0]], event.jets_phi[i_h2[0]], event.jets_e[i_h2[0]])
-    h2_b2.SetPtEtaPhiE(event.jets_pt[i_h2[1]], event.jets_eta[i_h2[1]], event.jets_phi[i_h2[1]], event.jets_e[i_h2[1]])    
+    mh1_v1[0], mh2_v1[0], dRh1_v1[0], dRh2_v1[0], mhh_v1[0] = compute_var(i_h1, i_h2)
+    mh1_v2[0], mh2_v2[0], dRh1_v2[0], dRh2_v2[0], mhh_v2[0] = compute_var(i_h1_b, i_h2_b)
+    #print 'A: ', i_h1, i_h2, '  mh1:',mh1_v1[0], '  mh2:',mh2_v1[0] 
 
-    h1 = h1_b1 + h1_b2
-    h2 = h2_b1 + h2_b2
-    hh = h1 + h2
 
-    if h1.M()<h2.M():
-        h_appo = h1
-        h1 = h2
-        h2 = h_appo
-    
-    mh1[0] = h1.M()
-    mh2[0] = h2.M()
-    dRh1[0] = h1_b1.DeltaR(h1_b2)
-    dRh2[0] = h2_b1.DeltaR(h2_b2)
-    mhh[0] = hh.M()
     pt_j1[0] = event.jets_pt[0]
+
     #  print "mh1:", mh1[0]
     #  print "mh2:", mh2[0]
     #  print "dRh1:", dRh1[0]
