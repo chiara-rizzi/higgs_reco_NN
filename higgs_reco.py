@@ -3,35 +3,52 @@ import pandas as pd
 import numpy as np
 import itertools # to make all the combinations of two jets in the event
 import logging 
+
 from sklearn.preprocessing import StandardScaler # to scale data
 from sklearn.model_selection import train_test_split
-from keras.optimizers import SGD #test keras
+from sklearn.metrics import roc_curve,roc_auc_score,accuracy_score
 
 # NN model
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
-# accuracy
-from sklearn.metrics import accuracy_score
+from keras.optimizers import SGD #test keras
+
 # for plotting
 import matplotlib.pyplot as plt
-
+import seaborn as sns
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-infile_name = 'files/create_tree/output_397231_mc16a.root'
-tree_name = 'GGMH_500'
+infile_name = ['files/create_tree/output_397231_mc16a.root',
+               'files/create_tree/output_397231_mc16d.root',
+               'files/create_tree/output_397231_mc16e.root'
+               ]
+tree_name = ['GGMH_500',
+             'GGMH_500',
+             'GGMH_500']
+             
 # open file and get tree
-logger.info('Opening: '+infile_name)
-file = uproot.open(infile_name)
-tree = file[tree_name]
-# print(tree.keys())
-# make DataFrame with original tree
-df1 = tree.pandas.df(["pt_jet*",'eta_jet*','phi_jet*','e_jet*','is_b_jet*','is_from_h*','jets_n','hh_type']) 
+frames = []
+for idx,f_name in enumerate(infile_name):    
+    logger.info('Opening: '+f_name)
+    file = uproot.open(f_name)
+    tree = file[tree_name[idx]]
+    # print(tree.keys())
+    # make DataFrame with original tree
+    df1 = tree.pandas.df(["pt_jet*",'eta_jet*','phi_jet*','e_jet*','is_b_jet*','is_from_h*','jets_n','hh_type']) 
+    #df1 = df1[(df1['hh_type']==10) | (df1['hh_type']==11)]
+    df1 = df1[df1['hh_type']==10]
+    print(df1.shape)
+    # print(df1.head())
+    frames.append(df1)
+
+logger.info('Concatenating DataFrames')        
+df1 = pd.concat(frames)
+print(df1.shape)
 df1['EventNum'] = df1.index
-df1 = df1[(df1['hh_type']==10) | (df1['hh_type']==11)]
-# print(df1.head())
+print(df1.shape)
 
 # Make a new DataFrame with one row for each jet pair
 logger.info('Creating DataFrame with one row for each jet pair')
@@ -76,6 +93,14 @@ for index, row in df1.iterrows():
 df_new = pd.DataFrame(rows_list, columns=['EventNum','i_A','i_B','pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','is_good'])  
 #print(df_new.head(100))
 
+df_good =  df_new[df_new['is_good']==1]
+df_bad =  df_new[df_new['is_good']==0]
+
+print('Describe')
+print(df_new.describe())
+print('Size good:',df_good.shape)
+print('Size bad:',df_bad.shape)
+
 logger.info('Converting DataFrame into np arrays')
 X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B']].values
 y = df_new['is_good'].values
@@ -87,7 +112,7 @@ sc = StandardScaler()
 
 # train and test splitting
 logger.info('Train and test splitting')
-X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = 0.5)
+X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = 0.1)
 
 # Neural network
 model = Sequential() # creating model sequentially (each layer takes as input output of previous layer)
@@ -96,15 +121,32 @@ model.add(Dense(50, activation='relu'))
 model.add(Dense(20, activation='relu'))
 model.add(Dense(1, activation='sigmoid')) # chiara: check what's the best activation function for single-value output
 # loss function and optimizer
-opt = SGD(lr=0.001)
-model.compile(loss = "binary_crossentropy", optimizer = opt, metrics=['accuracy'])
+#opt = SGD(lr=0.001)
+#model.compile(loss = "binary_crossentropy", optimizer = opt, metrics=['accuracy'])
 #model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
 # training 
-history = model.fit(X_train, y_train, epochs=10, batch_size=200, # it was 100 epochs
+history = model.fit(X_train, y_train, epochs=200, batch_size=40, # it was 100 epochs
                     validation_data = (X_test,y_test)) # show accuracy on test data after every epoch
 
 # Prediction
 y_pred_test = model.predict(X_test)
+y_pred_train = model.predict(X_train)
+
+fpr_test, tpr_test, thresholds_test = roc_curve(y_test, y_pred_test)
+fpr_train, tpr_train, thresholds_train = roc_curve(y_train, y_pred_train)
+
+plt.figure(1)
+plt.plot([0, 1], [0, 1], 'k--')
+plt.plot(fpr_train, tpr_train, label='train')
+plt.plot(fpr_test, tpr_test, label='validation')
+plt.xlabel('False positive rate')
+plt.ylabel('True positive rate')
+plt.title('ROC curve')
+plt.legend(loc='best')
+plt.show()
+
+
 #a = accuracy_score(y_pred_test,y_test)
 #logger.info(f'Accuracy is: {a*100}')
 
@@ -121,13 +163,13 @@ print('X.size: ', X.size)
 print('df_new.shape: ', df_new.shape)
 """
 logger.info('Plotting accuracy')
-plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
-plt.title('Model accuracy')
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('Model acc')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Test'], loc='upper left')
-#plt.show()
+plt.show()
 
 logger.info('Plotting loss function')
 plt.plot(history.history['loss']) 

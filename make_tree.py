@@ -1,10 +1,10 @@
-
 import ROOT
 from array import array
 from keras.models import load_model
 import itertools # to make all the combinations of two jets in the event
 import pandas as pd
 import numpy as np
+import operator # to get the maximum in dictionary
 
 print "Chiara"
 
@@ -23,12 +23,14 @@ mh2 = array( 'f', [ 0 ] )
 dRh1 = array( 'f', [ 0 ] )
 dRh2 = array( 'f', [ 0 ] )
 mhh = array( 'f', [ 0 ] )
+pt_j1 = array( 'f', [ 0 ])
 
 t_out.Branch( 'm_h1_NN', mh1, 'm_h1_NN/F' )
 t_out.Branch( 'm_h2_NN', mh2, 'm_h2_NN/F' )
 t_out.Branch( 'dR_h1_NN', dRh1, 'dR_h1_NN/F' )
 t_out.Branch( 'dR_h2_NN', dRh2, 'dR_h2_NN/F' )
 t_out.Branch( 'm_hh_NN', mhh, 'm_hh_NN/F' )
+t_out.Branch( 'pt_j1', pt_j1, 'pt_j1/F' )
 
 model = load_model('models/my_model.h5')
 
@@ -47,6 +49,28 @@ def choose_index(df_new):
     h1 = return_pair(df_new, 0)
     h2 = return_pair(df_new, 1)
     return (h1,h2)
+
+def to_set (item):
+    my_set = set( [val for sublist in item for val in sublist]  )
+    return my_set
+
+def choose_index_maxmin(df_new, Njet):
+    stuff = range(0,Njet)
+    combi2j = itertools.combinations(stuff, 2)
+    combi2j_list = [i for i in combi2j]
+    combi4j = itertools.combinations(combi2j_list, 2)
+    combi4j_list = [i for i in combi4j if len(to_set(i))>3] # consider only combinations with 4 different jets
+    pair_scores = {}
+    for pair in combi2j_list:
+        pair_scores[pair] = df_new[(df_new['i_A']==pair[0]) & (df_new['i_B']==pair[1])]['is_good_pred'].values[0]
+        # print('pair_scores[pair]',pair_scores[pair])
+    fourj_scores  = {}
+    for fourj in combi4j_list:
+        # print('pair_scores[fourj[0]]:',pair_scores[fourj[0]])
+        # print('pair_scores[fourj[1]]:',pair_scores[fourj[1]])
+        fourj_scores[fourj] = min( pair_scores[fourj[0]], pair_scores[fourj[1]] )
+    fourj_selected = max(fourj_scores.iteritems(), key=operator.itemgetter(1))[0]
+    return (fourj_selected[0], fourj_selected[1])
 
 for idx,event in enumerate(t_in):
     # assign value to variables 
@@ -79,15 +103,18 @@ for idx,event in enumerate(t_in):
     y_pred = np.random.rand(y_pred.size) # chiara: remove!! just for testing!!
     df_new['is_good_pred'] = y_pred
     
-    i_h1, i_h2 = choose_index(df_new)
-
-    print "Original"
-    print df_new
-    print "Sorted"
-    print df_new.sort_values(by=['is_good_pred'],ascending=False)
-    print "Chosen indexes"
-    print i_h1
-    print i_h2
+    max_first = False
+    if max_first:
+        i_h1, i_h2 = choose_index(df_new)
+    else:
+        i_h1, i_h2 = choose_index_maxmin(df_new, Njet)
+    #  print "Original"
+    #  print df_new
+    #  print "Sorted"
+    #  print df_new.sort_values(by=['is_good_pred'],ascending=False)
+    #  print "Chosen indexes"
+    #  print i_h1
+    #  print i_h2
     
     # print "Index:", i_A,i_B
     # chiara: need  to check how to do the scaling with the same values as the training sample
@@ -100,18 +127,23 @@ for idx,event in enumerate(t_in):
     h1_b1.SetPtEtaPhiE(event.jets_pt[i_h1[0]], event.jets_eta[i_h1[0]], event.jets_phi[i_h1[0]], event.jets_e[i_h1[0]])
     h1_b2.SetPtEtaPhiE(event.jets_pt[i_h1[1]], event.jets_eta[i_h1[1]], event.jets_phi[i_h1[1]], event.jets_e[i_h1[1]])
     h2_b1.SetPtEtaPhiE(event.jets_pt[i_h2[0]], event.jets_eta[i_h2[0]], event.jets_phi[i_h2[0]], event.jets_e[i_h2[0]])
-    h2_b2.SetPtEtaPhiE(event.jets_pt[i_h2[1]], event.jets_eta[i_h2[1]], event.jets_phi[i_h2[1]], event.jets_e[i_h2[1]])
+    h2_b2.SetPtEtaPhiE(event.jets_pt[i_h2[1]], event.jets_eta[i_h2[1]], event.jets_phi[i_h2[1]], event.jets_e[i_h2[1]])    
 
     h1 = h1_b1 + h1_b2
     h2 = h2_b1 + h2_b2
     hh = h1 + h2
 
+    if h1.M()<h2.M():
+        h_appo = h1
+        h1 = h2
+        h2 = h_appo
+    
     mh1[0] = h1.M()
     mh2[0] = h2.M()
     dRh1[0] = h1_b1.DeltaR(h1_b2)
     dRh2[0] = h2_b1.DeltaR(h2_b2)
     mhh[0] = hh.M()
-
+    pt_j1[0] = event.jets_pt[0]
     #  print "mh1:", mh1[0]
     #  print "mh2:", mh2[0]
     #  print "dRh1:", dRh1[0]
