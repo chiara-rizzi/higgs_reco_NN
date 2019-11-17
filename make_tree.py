@@ -5,6 +5,7 @@ import itertools # to make all the combinations of two jets in the event
 import pandas as pd
 import numpy as np
 import operator # to get the maximum in dictionary
+import math
 
 print "Chiara"
 
@@ -97,6 +98,8 @@ for idx,event in enumerate(t_in):
     stuff = range(0,Njet)
     for index in itertools.combinations(stuff, 2):
         dict1 = {}
+        dict1['run_number'] = event.run_number
+        dict1['event_number'] = event.event_number
         dict1['pt_A'] = event.jets_pt[index[0]]
         dict1['pt_B'] = event.jets_pt[index[1]]
         dict1['eta_A'] = event.jets_eta[index[0]]
@@ -109,13 +112,24 @@ for idx,event in enumerate(t_in):
         dict1['is_b_B'] = event.jets_isb_FixedCutBEff_77[index[1]]
         dict1['i_A'] = index[0]
         dict1['i_B'] = index[1]
+        def compute_dR(eta1, eta2, phi1, phi2):
+            dEta = math.fabs(eta1 - eta2)
+            dPhi = phi1 - phi2
+            dPhi = math.fabs( (dPhi + math.pi) % (2*math.pi) - math.pi  )
+            dR = math.sqrt( dEta*dEta + dPhi*dPhi  )
+            return dR
+        # dict1['dR'] = compute_dR(dict1['eta_A'], dict1['eta_B'], dict1['phi_A'], dict1['phi_B'])
         rows_list.append(dict1)
-    df_new = pd.DataFrame(rows_list, columns=['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','i_A','i_B'])
+
+    df_new = pd.DataFrame(rows_list, columns=['run_number','event_number','pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','i_A','i_B','dR'])
+    # X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','dR']].values
     X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B']].values
     y_pred = model.predict(X)
 
-    y_pred = np.random.rand(y_pred.size) # chiara: remove!! just for testing!!
+    # y_pred = np.random.rand(y_pred.size) # chiara: remove!! just for testing!!
     df_new['is_good_pred'] = y_pred
+    
+    # print df_new.sort_values(['is_good_pred'], ascending=[False]).head(30), '\n'
     
     """
     max_first = False

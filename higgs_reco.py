@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import itertools # to make all the combinations of two jets in the event
 import logging 
+import math
 
 from sklearn.preprocessing import StandardScaler # to scale data
 from sklearn.model_selection import train_test_split
@@ -19,7 +20,7 @@ from keras.optimizers import SGD #test keras
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-pd.set_option('display.max_rows', 100)
+pd.set_option('display.max_rows', 200)
 
 train = True
 
@@ -28,17 +29,17 @@ logger = logging.getLogger()
 
 infile_name = ['files/create_tree/output_397231_mc16a.root',
                'files/create_tree/output_397231_mc16d.root',
-               'files/create_tree/output_397231_mc16e.root',
+               #'files/create_tree/output_397231_mc16e.root',
                'files/create_tree/output_397232_mc16a.root',
-               'files/create_tree/output_397232_mc16d.root',
-               'files/create_tree/output_397232_mc16e.root'
+               'files/create_tree/output_397232_mc16d.root'#,
+               #'files/create_tree/output_397232_mc16e.root'
                ]
 tree_name = ['GGMH_500',
              'GGMH_500',
-             'GGMH_500',
+             #'GGMH_500',
              'GGMH_1100',
-             'GGMH_1100',
-             'GGMH_1100'
+             'GGMH_1100'#,
+             #'GGMH_1100'
              ]
              
 # open file and get tree
@@ -49,7 +50,7 @@ for idx,f_name in enumerate(infile_name):
     tree = file[tree_name[idx]]
     # print(tree.keys())
     # make DataFrame with original tree
-    df1 = tree.pandas.df(["pt_jet*",'eta_jet*','phi_jet*','e_jet*','is_b_jet*','is_from_h*','jets_n','hh_type']) 
+    df1 = tree.pandas.df(["event_number", "run_number","pt_jet*",'eta_jet*','phi_jet*','e_jet*','is_b_jet*','is_from_h*','jets_n','hh_type']) 
     #df1 = df1[(df1['hh_type']==10) | (df1['hh_type']==11)]
     df1 = df1[df1['hh_type']==10]
     print(df1.shape)
@@ -59,8 +60,24 @@ for idx,f_name in enumerate(infile_name):
 logger.info('Concatenating DataFrames')        
 df1 = pd.concat(frames)
 print(df1.shape)
-df1['EventNum'] = df1.index
 print(df1.shape)
+
+scalin_dict = {}
+scalin_dict['pt_A'] = 300.
+scalin_dict['pt_B'] = 300. 
+scalin_dict['eta_A'] = 5. 
+scalin_dict['eta_B'] = 5. 
+scalin_dict['phi_A'] = 3.14
+scalin_dict['phi_B'] = 3.14
+scalin_dict['e_A'] = 300. 
+scalin_dict['e_B'] = 300. 
+scalin_dict['dR'] = 2. 
+
+def scale_feat(myDataFrame, mydict):
+    for key in list(myDataFrame):
+        if key in mydict:
+            myDataFrame[key] = myDataFrame[key] / mydict[key]
+    return myDataFrame
 
 # Make a new DataFrame with one row for each jet pair
 logger.info('Creating DataFrame with one row for each jet pair')
@@ -86,10 +103,18 @@ for index, row in df1.iterrows():
         dict1['is_h1_A'] = row['is_from_h1_jet_'+str(i_A)]
         dict1['is_h1_B'] = row['is_from_h1_jet_'+str(i_B)]
         dict1['is_h2_A'] = row['is_from_h2_jet_'+str(i_A)]
-        dict1['is_h2_B'] = row['is_from_h2_jet_'+str(i_B)]
-        dict1['EventNum'] = row['EventNum'] # keep track of the event number in the original dataframe
+        dict1['is_h2_B'] = row['is_from_h2_jet_'+str(i_B)]        
+        dict1['event_number'] = row['event_number'] # keep track of the event number in the original dataframe
+        dict1['run_number'] = row['run_number'] # keep track of the event number in the original dataframe
         dict1['i_A'] = i_A # keep track of index of jet A
-        dict1['i_B'] = i_B # keep track of index of jet B
+        dict1['i_B'] = i_B # keep track of index of jet B        
+        def compute_dR(eta1, eta2, phi1, phi2):
+            dEta = math.fabs(eta1 - eta2)
+            dPhi = phi1 - phi2
+            dPhi = math.fabs( (dPhi + math.pi) % (2*math.pi) - math.pi  )
+            dR = math.sqrt( dEta*dEta + dPhi*dPhi  )
+            return dR
+        dict1['dR'] = compute_dR(dict1['eta_A'], dict1['eta_B'], dict1['phi_A'], dict1['phi_B'])
         def is_good(is_h1_A, is_h1_B, is_h2_A, is_h2_B):
             if  is_h1_A>0.1:
                 if is_h1_B>0.1:
@@ -101,7 +126,7 @@ for index, row in df1.iterrows():
         dict1['is_good'] = is_good(dict1['is_h1_A'], dict1['is_h1_B'], dict1['is_h2_A'], dict1['is_h2_B'])
         rows_list.append(dict1)
 # finally create the DataFrame from the list
-df_new = pd.DataFrame(rows_list, columns=['EventNum','i_A','i_B','pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','is_good'])  
+df_new = pd.DataFrame(rows_list, columns=['run_number','event_number','i_A','i_B','pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','dR','is_good'])  
 #print(df_new.head(100))
 
 df_good =  df_new[df_new['is_good']==1]
@@ -113,13 +138,14 @@ print('Size good:',df_good.shape)
 print('Size bad:',df_bad.shape)
 
 logger.info('Converting DataFrame into np arrays')
+# X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B','dR']].values
 X = df_new[['pt_A','pt_B','eta_A','eta_B','phi_A','phi_B','is_b_A','is_b_B','e_A','e_B']].values
 y = df_new['is_good'].values
 
 # scaling
-logger.info('Scaling features')
-sc = StandardScaler()
-X = sc.fit_transform(X) 
+# logger.info('Scaling features')
+# sc = StandardScaler()
+# X = sc.fit_transform(X) 
 
 if train:
     # train and test splitting
@@ -127,8 +153,8 @@ if train:
     X_train,X_test,y_train,y_test = train_test_split(X,y,test_size = 0.1)
     # Neural network
     model = Sequential() # creating model sequentially (each layer takes as input output of previous layer)
-    model.add(Dense(200, input_dim=10, activation='relu')) # Dense: fully connected layer
-    # model.add(Dense(50, activation='relu'))
+    model.add(Dense(100, input_dim=10, activation='relu')) # Dense: fully connected layer
+    model.add(Dense(50, activation='relu'))
     # model.add(Dense(20, activation='relu')) 
     model.add(Dense(1, activation='sigmoid')) # chiara: check what's the best activation function for single-value output
     # loss function and optimizer
@@ -137,7 +163,7 @@ if train:
     #model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
     # training 
-    history = model.fit(X_train, y_train, epochs=50, batch_size=50, # it was 100 epochs
+    history = model.fit(X_train, y_train, epochs=80, batch_size=50, # it was 100 epochs
                         validation_data = (X_test,y_test)) # show accuracy on test data after every epoch
     
     # Prediction
@@ -197,8 +223,8 @@ logger.info('Make column of prediction for DataFrame')
 y_pred = model.predict(X) # value of predicted y on train set 
 df_new['is_good_pred'] = y_pred
 
-print(df_new.head(10))
+df_new = df_new.sort_values(['run_number', 'event_number', 'is_good_pred'], ascending=[True, True, False])
+df_new.to_csv('train_and_test.csv')
+print(df_new.tail(200))
 
-df_new_chosen = df_new.loc[df_new.groupby('EventNum')['is_good_pred'].idxmax()]
 
-#print(df_new_chosen.head())
